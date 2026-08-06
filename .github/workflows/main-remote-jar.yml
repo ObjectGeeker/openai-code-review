@@ -1,4 +1,4 @@
-name: Build and Run Maven Jar OpenAICodeReview
+name: Build and Run Remote Jar OpenAICodeReview
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - '*'
 
 jobs:
-  build-and-run:
+  download-and-run:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,12 +24,14 @@ jobs:
           distribution: 'temurin'  # 你可以选择其他发行版，如 'adopt' 或 'zulu'
           java-version: '21'
 
-      - name: Build with maven
-        run: mvn clean install
-
-      - name: Copy openai-code-review-sdk JAR
-        # stripVersion=true 使复制后的文件名不带版本号，即 openai-code-review-sdk.jar
-        run: mvn dependency:copy -Dartifact=com.object.ai:openai-code-review-sdk:1.0 -Dmdep.stripVersion=true -DoutputDirectory=./libs
+      - name: Download openai-code-review-sdk JAR
+        # jar 下载地址通过 GitHub Secrets 配置（JAR_DOWNLOAD_URL），
+        # 经 env 块注入避免 URL 出现在命令行中；-O 固定输出文件名，与后续执行路径对齐
+        env:
+          JAR_DOWNLOAD_URL: ${{ secrets.JAR_DOWNLOAD_URL }}
+        run: |
+          mkdir -p ./libs
+          wget -q -O ./libs/openai-code-review-sdk.jar "$JAR_DOWNLOAD_URL"
 
       - name: Run CodeReview
         # 配置全部通过环境变量注入 SDK，敏感信息均从 GitHub Secrets 读取，禁止硬编码
