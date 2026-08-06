@@ -31,7 +31,16 @@ jobs:
           JAR_DOWNLOAD_URL: ${{ secrets.JAR_DOWNLOAD_URL }}
         run: |
           mkdir -p ./libs
-          wget -q -O ./libs/openai-code-review-sdk.jar "$JAR_DOWNLOAD_URL"
+          # -nv 保留下载日志便于排查；URL 必须加引号，防止含 & 的签名地址被 shell 截断
+          wget -nv -O ./libs/openai-code-review-sdk.jar "$JAR_DOWNLOAD_URL"
+          # 校验产物是合法 jar（zip 魔数 PK）：若下载到的是 HTML 错误页/登录页，在这里直接失败并暴露内容
+          if ! head -c 2 ./libs/openai-code-review-sdk.jar | grep -q "PK"; then
+            echo "::error::下载的文件不是有效的 jar，请检查 JAR_DOWNLOAD_URL 是否为资产直链"
+            ls -la ./libs
+            echo "--- 文件头部内容（前 500 字节） ---"
+            head -c 500 ./libs/openai-code-review-sdk.jar
+            exit 1
+          fi
 
       - name: Run CodeReview
         # 配置全部通过环境变量注入 SDK，敏感信息均从 GitHub Secrets 读取，禁止硬编码
