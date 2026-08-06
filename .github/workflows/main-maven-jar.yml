@@ -1,0 +1,36 @@
+name: Build and Run Maven Jar OpenAICodeReview
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 检出最后两个提交，以便可以比较 HEAD~1 和 HEAD
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'  # 你可以选择其他发行版，如 'adopt' 或 'zulu'
+          java-version: '21'
+
+      - name: Build with maven
+        run: mvn clean install
+
+      - name: Copy openai-code-review-sdk JAR
+        # stripVersion=true 使复制后的文件名不带版本号，即 openai-code-review-sdk.jar
+        run: mvn dependency:copy -Dartifact=com.object.ai:openai-code-review-sdk:1.0 -Dmdep.stripVersion=true -DoutputDirectory=./libs
+
+      - name: Run CodeReview
+        # API Key 通过 GitHub Secrets 注入，禁止硬编码在仓库中
+        run: java -jar ./libs/openai-code-review-sdk.jar llm-6ks7ads9ex5ksi0r ${{ secrets.DASHSCOPE_API_KEY }} ${{ secrets.REPO_URI }} ${{ secrets.REPO_TOKEN }} ${{ secrets.AUTHOR }} ${{ secrets.EMAIL }} ${{ secrets.PROJECT }}
